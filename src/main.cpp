@@ -7,7 +7,7 @@ int main() {
 
 	while(true) {
 		midiMarkov.update();
-		usleep(10);
+//		usleep(1);
 	}
 
 	return 0;
