@@ -4,49 +4,73 @@ int MidiMarkov::setup() {
 	try {
 		midiin = new RtMidiIn();
 	} catch (RtMidiError &error) {
-		// Handle the exception here
 		error.printMessage();
 	}
 
 	midiin->openVirtualPort();
 	midiin->ignoreTypes(false, false, false);
 
+	try {
+		midiout = new RtMidiOut();
+	} catch (RtMidiError &error) {
+		error.printMessage();
+	}
+
+	midiout->openVirtualPort();
+
+
 	return 0;
 }
 
 int MidiMarkov::cleanup() {
 	delete midiin;
+	delete midiout;
 
 	return 0;
 }
 
 void MidiMarkov::update() {
 	updateMarkovMessages();
+	iterateMarkovChain();
 }
 
 void MidiMarkov::updateMarkovMessages() {
+	//TODO curMarkovMessage does not need to be global
 	curMarkovMessage.stamp = midiin->getMessage(&curMarkovMessage.message);
 
-	if(curMarkovMessage.message.size() > 0) {
+	// Only save if note is shorter than four seconds
+	if(curMarkovMessage.stamp < 4 &&curMarkovMessage.message.size() > 0) {
 		unsigned int curPosition = getPositionInMarkovMessages(curMarkovMessage);
 
 		if(prevPosition != -1) {
-			int index = getIndexInSucceedingMessages(markovMessages.at(prevPosition), curPosition);
-
-			if(index == -1) {
-				SucceedingMessage_t succeedingMessage;
-				succeedingMessage.index = curPosition;
-				succeedingMessage.nFrequency = 1;
-				markovMessages.at(prevPosition).succeedingMessages.push_back(succeedingMessage);
-			} else {
-				markovMessages.at(prevPosition).succeedingMessages.at(index).nFrequency++;
-			}
+			markovMessages.at(prevPosition).succeedingMessages.push_back(curPosition);
 		}
 
-		printMarkovMessages();
+//		printMarkovMessages();
 		prevPosition = curPosition;
 	}
 
+}
+
+void MidiMarkov::iterateMarkovChain() {
+	if(markovMessages.size() > 1) {
+		chrono::time_point<chrono::high_resolution_clock> curTime;
+		curTime = chrono::system_clock::now();
+
+		chrono::duration<double> deltaPrevMsg = curTime - prevTime;
+		chrono::duration<double> stampDuration = (chrono::duration<double>) markovMessages.at(playIndex).stamp;
+
+		if(deltaPrevMsg > stampDuration) {
+			unsigned int maxRand = markovMessages.at(playIndex).succeedingMessages.size();
+			if(maxRand) { 
+				playIndex = markovMessages.at(playIndex).succeedingMessages.at(rand() % maxRand);
+				midiout->sendMessage(&markovMessages.at(playIndex).message);
+				printMarkovMessage(markovMessages.at(playIndex));
+			}
+
+			prevTime = curTime;
+		}
+	}
 }
 
 int MidiMarkov::getPositionInMarkovMessages(MarkovMessage_t &markovMessage) {
@@ -62,19 +86,6 @@ int MidiMarkov::getPositionInMarkovMessages(MarkovMessage_t &markovMessage) {
 	return markovMessage.pos;
 }
 
-int MidiMarkov::getIndexInSucceedingMessages(MarkovMessage_t &markovMessage, int position) {
-	for (int i=0; i<markovMessage.succeedingMessages.size(); i++) {
-		if(markovMessage.succeedingMessages.at(i).index == position){
-			return i;
-		}
-	}
-
-	return -1;
-}
-
-void MidiMarkov::addMessageToMarkovMessages(MarkovMessage_t &markovMessage) {
-}
-
 void MidiMarkov::printMarkovMessage(MarkovMessage_t &markovMessage) {
 	int nBytes = markovMessage.message.size();
 	cout << markovMessage.pos;
@@ -86,9 +97,10 @@ void MidiMarkov::printMarkovMessage(MarkovMessage_t &markovMessage) {
 		cout << "stamp = " << markovMessage.stamp << endl; 
 	}
 
+
 	cout << "Succ: ";
 	for(auto m : markovMessage.succeedingMessages) {
-		cout << m.index << " ," << m.nFrequency << "; ";
+		cout << m << "|";
 	}
 	cout << endl;
 
