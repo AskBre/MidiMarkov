@@ -30,11 +30,8 @@ class MidiMarkov {
 		RtMidiOut *midiout = 0;
 
 		vector<MarkovMessage_t> markovMessages;
-		MarkovMessage_t curMarkovMessage;
-		MarkovMessage_t prevMarkovMessage;
 		int prevPosition = -1;
 		int playIndex = 0;
-		double curStamp;
 		chrono::time_point<chrono::high_resolution_clock> prevTime;
 
 		void updateMarkovMessages();

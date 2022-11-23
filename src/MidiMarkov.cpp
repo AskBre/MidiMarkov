@@ -35,7 +35,7 @@ void MidiMarkov::update() {
 }
 
 void MidiMarkov::updateMarkovMessages() {
-	//TODO curMarkovMessage does not need to be global
+	MarkovMessage_t curMarkovMessage;
 	curMarkovMessage.stamp = midiin->getMessage(&curMarkovMessage.message);
 
 	// Only save if note is shorter than four seconds
