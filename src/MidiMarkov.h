@@ -31,6 +31,7 @@ class MidiMarkov {
 
 		vector<MarkovMessage_t> markovMessages;
 		int prevPosition = -1;
+		bool prevIsLongNote = false;
 		int playIndex = 0;
 		chrono::time_point<chrono::high_resolution_clock> prevTime;
 
@@ -40,6 +41,4 @@ class MidiMarkov {
 
 		void printMarkovMessage(MarkovMessage_t &markovMessage);
 		void printMarkovMessages();
-
-
 };

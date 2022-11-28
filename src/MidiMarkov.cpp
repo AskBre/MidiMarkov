@@ -18,7 +18,6 @@ int MidiMarkov::setup() {
 
 	midiout->openVirtualPort();
 
-
 	return 0;
 }
 
@@ -37,18 +36,30 @@ void MidiMarkov::update() {
 void MidiMarkov::updateMarkovMessages() {
 	MarkovMessage_t curMarkovMessage;
 	curMarkovMessage.stamp = midiin->getMessage(&curMarkovMessage.message);
+	bool isLongNote = curMarkovMessage.stamp > 4;
 
 	// Only save if note is shorter than four seconds
-	if(curMarkovMessage.stamp < 4 &&curMarkovMessage.message.size() > 0) {
-		unsigned int curPosition = getPositionInMarkovMessages(curMarkovMessage);
+	if(curMarkovMessage.message.size() > 0) {
+		if(!isLongNote) {
+			bool isOnNote = curMarkovMessage.message.at(0) == 144;
+			bool isOffNote = curMarkovMessage.message.at(0) == 128;
 
-		if(prevPosition != -1) {
-			markovMessages.at(prevPosition).succeedingMessages.push_back(curPosition);
+			if(isOnNote || isOffNote) {
+				unsigned int curPosition = getPositionInMarkovMessages(curMarkovMessage);
+
+				if(prevPosition != -1 && !prevIsLongNote) {
+					markovMessages.at(prevPosition).succeedingMessages.push_back(curPosition);
+				}
+
+				prevPosition = curPosition;
+			}
+	//		system("clear");
+	//		printMarkovMessages();
 		}
 
-//		printMarkovMessages();
-		prevPosition = curPosition;
+		prevIsLongNote = isLongNote;
 	}
+
 
 }
 
@@ -65,7 +76,7 @@ void MidiMarkov::iterateMarkovChain() {
 			if(maxRand) { 
 				playIndex = markovMessages.at(playIndex).succeedingMessages.at(rand() % maxRand);
 				midiout->sendMessage(&markovMessages.at(playIndex).message);
-				printMarkovMessage(markovMessages.at(playIndex));
+//				printMarkovMessage(markovMessages.at(playIndex));
 			}
 
 			prevTime = curTime;
@@ -97,13 +108,11 @@ void MidiMarkov::printMarkovMessage(MarkovMessage_t &markovMessage) {
 		cout << "stamp = " << markovMessage.stamp << endl; 
 	}
 
-
 	cout << "Succ: ";
 	for(auto m : markovMessage.succeedingMessages) {
 		cout << m << "|";
 	}
 	cout << endl;
-
 }
 
 void MidiMarkov::printMarkovMessages() {
